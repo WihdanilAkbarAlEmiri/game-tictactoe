@@ -1,0 +1,261 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe</title>
+
+<style>
+body{
+  margin:0;
+  font-family:'Segoe UI',sans-serif;
+  background:linear-gradient(135deg,#141e30,#243b55);
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+
+.screen{display:none;text-align:center;}
+.active{display:block;}
+
+button{
+  padding:10px 20px;
+  margin:8px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+  background:black;
+  color:white;
+}
+button:hover{background:#444;}
+
+.board{
+  display:grid;
+  grid-template-columns:repeat(3,100px);
+  gap:10px;
+  margin:20px auto;
+}
+
+.cell{
+  width:100px;
+  height:100px;
+  background:#1c1c1c;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:40px;
+  border-radius:10px;
+  cursor:pointer;
+}
+.cell:hover{background:#333;}
+
+.score{margin-top:10px;font-size:18px;}
+</style>
+</head>
+<body>
+
+<!-- AUDIO FILES (PASTIKAN NAMA SAMA PERSIS) -->
+ <audio id="bgMusic" loop>
+<source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+</audio>
+
+<audio id="clickSound" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
+<audio id="winSound" src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3" preload="auto"></audio>
+
+<div class="screen active" id="menu">
+  <h1>🎮 Tic Tac Toe</h1>
+  <button onclick="toggleMusic()">🎵 Music: OFF</button>
+  <button onclick="startGame('pvp')">👥 2 Player</button>
+  <button onclick="startGame('cpu')">🤖 Vs Computer</button>
+</div>
+
+<div class="screen" id="game">
+  <h2 id="modeText"></h2>
+  <div class="board" id="board"></div>
+  <div id="message"></div>
+
+  <div class="score">
+    ❌ Score: <span id="scoreX">0</span> |
+    ⭕ Score: <span id="scoreO">0</span>
+  </div>
+
+  <button onclick="resetRound()">Reset Round</button>
+  <button onclick="goMenu()">Home</button>
+</div>
+
+<script>
+let boardState;
+let currentPlayer;
+let gameOver;
+let mode;
+let scoreX;
+let scoreO;
+let isCpuThinking=false;
+
+const board=document.getElementById("board");
+const message=document.getElementById("message");
+const modeText=document.getElementById("modeText");
+const bgMusic=document.getElementById("bgMusic");
+const clickSound=document.getElementById("clickSound");
+const winSound=document.getElementById("winSound");
+
+let musicOn=false;
+
+function toggleMusic(){
+  if(musicOn){
+    bgMusic.pause();
+    musicOn=false;
+    event.target.textContent="🎵 Music: OFF";
+  }else{
+    bgMusic.play().catch(e=>console.log("Audio play failed:",e));
+    musicOn=true;
+    event.target.textContent="🎵 Music: ON";
+  }
+}
+
+
+function initScores(){
+  scoreX=0;
+  scoreO=0;
+  document.getElementById("scoreX").textContent=scoreX;
+  document.getElementById("scoreO").textContent=scoreO;
+}
+
+function startGame(selectedMode){
+  mode=selectedMode;
+  document.getElementById("menu").classList.remove("active");
+  document.getElementById("game").classList.add("active");
+  modeText.textContent=mode==="pvp"?"👥 2 Player Mode":"🤖 Vs Computer Mode";
+  initScores();
+  resetRound();
+}
+
+function goMenu(){
+  document.getElementById("game").classList.remove("active");
+  document.getElementById("menu").classList.add("active");
+}
+
+function drawBoard(){
+  board.innerHTML="";
+  boardState.forEach((cell,i)=>{
+    const div=document.createElement("div");
+    div.classList.add("cell");
+    div.textContent=cell;
+    div.addEventListener("click",()=>handleClick(i));
+    board.appendChild(div);
+  });
+}
+
+function playClick(){
+  clickSound.currentTime=0;
+  clickSound.load();
+  clickSound.play().catch(e=>console.log("Click sound error:",e));
+}
+
+function playWin(){
+  winSound.currentTime=0;
+  winSound.load();
+  winSound.play().catch(e=>console.log("Win sound error:",e));
+}
+
+function handleClick(i){
+  if(boardState[i]||gameOver||isCpuThinking) return;
+
+  playClick();
+
+  boardState[i]=currentPlayer;
+  drawBoard();
+
+  if(checkWin(currentPlayer)){
+    message.textContent=currentPlayer+" MENANG 🎉";
+    playWin();
+    gameOver=true;
+    updateScore(currentPlayer);
+    return;
+  }
+
+  if(!boardState.includes(null)){
+    message.textContent="Seri 🤝";
+    gameOver=true;
+    return;
+  }
+
+  currentPlayer=currentPlayer==='❌'?'⭕':'❌';
+  message.textContent="Giliran "+currentPlayer;
+
+  if(mode==="cpu"&&currentPlayer==='⭕'&&!gameOver){
+    isCpuThinking=true;
+    setTimeout(computerMove,500);
+  }
+}
+
+function computerMove(){
+  let empty=boardState
+    .map((v,i)=>v===null?i:null)
+    .filter(v=>v!==null);
+
+  let randomIndex=empty[Math.floor(Math.random()*empty.length)];
+  boardState[randomIndex]='⭕';
+
+  playClick();
+
+  drawBoard();
+
+  if(checkWin('⭕')){
+    message.textContent="Computer MENANG 🤖";
+    playWin();
+    gameOver=true;
+    updateScore('⭕');
+    isCpuThinking=false;
+    return;
+  }
+
+  if(!boardState.includes(null)){
+    message.textContent="Seri 🤝";
+    gameOver=true;
+    isCpuThinking=false;
+    return;
+  }
+
+  currentPlayer='❌';
+  message.textContent="Giliran ❌";
+  isCpuThinking=false;
+}
+
+function updateScore(player){
+  if(player==='❌'){
+    scoreX++;
+    document.getElementById("scoreX").textContent=scoreX;
+  }else{
+    scoreO++;
+    document.getElementById("scoreO").textContent=scoreO;
+  }
+}
+
+function checkWin(player){
+  const combos=[
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  return combos.some(c=>c.every(i=>boardState[i]===player));
+}
+
+function resetRound(){
+  boardState=Array(9).fill(null);
+  currentPlayer='❌';
+  gameOver=false;
+  isCpuThinking=false;
+  message.textContent="Giliran ❌";
+  drawBoard();
+}
+
+resetRound();
+</script>
+
+</body>
+</html>
